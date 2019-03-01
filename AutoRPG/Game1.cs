@@ -23,6 +23,12 @@ namespace AutoRPG
         TimeSpan lastXPGain; // last time we killed a slime
         int XPToNextLevel = 0;
 
+        double transitionDuration = 1000;
+        double transitionChange = 0;
+        double transitionStartValue = 150;
+        double HPShown = 150;
+        TimeSpan HPChangeTime;
+
         public Game1()
         {
             graphics = new GraphicsDeviceManager(this);
@@ -110,9 +116,24 @@ namespace AutoRPG
                 // Calculate HP based on level
                 // using a linear function
                 // y = m * x + c
+                // Also record initial easing function transition values
+                transitionStartValue = HP;
                 HP = 50 * level + 100;
+                transitionChange = HP - transitionStartValue;
+                HPChangeTime = gameTime.TotalGameTime;
             }
-            
+
+            // Lerp the HP
+            TimeSpan timeSinceHPChange = gameTime.TotalGameTime - HPChangeTime;
+            if (timeSinceHPChange.TotalMilliseconds < transitionDuration)
+            {
+                HPShown = LinearEasing(timeSinceHPChange.TotalMilliseconds,
+                    transitionStartValue,
+                    transitionChange,
+                    transitionDuration);
+            }
+
+
             base.Update(gameTime);
         }
 
@@ -139,7 +160,7 @@ namespace AutoRPG
             // Draw HP
             spriteBatch.DrawString(
                 gameFont,
-                "HP: " + HP.ToString(),
+                "HP: " + HPShown.ToString(),
                 new Vector2(10f, 40f),
                 Color.White
             );
@@ -162,8 +183,8 @@ namespace AutoRPG
 
 
             // Draw rectangle for HP
-            Texture2D rect = new Texture2D(graphics.GraphicsDevice, HP, 30);
-            Color[] data = new Color[HP * 30];
+            Texture2D rect = new Texture2D(graphics.GraphicsDevice, (int)HPShown, 30);
+            Color[] data = new Color[(int)HPShown * 30];
             for (int i = 0; i < data.Length; ++i)
                 data[i] = Color.Green;
             rect.SetData(data);
@@ -192,6 +213,16 @@ namespace AutoRPG
             // needing only two points on the line
 
             return y0 + (x - x0) * (y1 - y0) / (x1 - x0);
+        }
+
+        private double LinearEasing(
+            double t,       // time since the start of the transition. Represents (x-x0)
+            double b,       // the start value of our transition. Represents y0.
+            double c,       // The total amount the transition will change by the end. Represents (y1 - y0)
+            double d        // The duration of the transition. Represents (x1 - x0)
+            )
+        {
+            return b + t * c / d;
         }
 
 
